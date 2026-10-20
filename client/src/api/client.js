@@ -105,8 +105,14 @@ export const api = {
 
   // Announcements & Notifications
   getAnnouncements: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
-    return apiRequest(`/announcements?${query}`);
+    const cleanParams = {};
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '' && v !== 'undefined') {
+        cleanParams[k] = v;
+      }
+    });
+    const query = new URLSearchParams(cleanParams).toString();
+    return apiRequest(`/announcements${query ? `?${query}` : ''}`);
   },
   createAnnouncement: (data) => apiRequest('/announcements', {
     method: 'POST',

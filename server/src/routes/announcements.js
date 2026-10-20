@@ -113,20 +113,62 @@ router.get('/', optionalAuthenticate, async (req, res) => {
   try {
     const { filter, audience, term, sort, search } = req.query;
 
-    let list = [...bulletins];
+    // Fetch custom announcements from SQL database
+    let dbBulletins = [];
+    try {
+      const dbRes = await db.query(`
+        SELECT a.*, c.name as club_name, u.name as author_name, u.role as author_role
+        FROM announcements a
+        LEFT JOIN clubs c ON a.club_id = c.id
+        LEFT JOIN users u ON a.created_by = u.id
+        ORDER BY a.created_at DESC
+      `);
+      dbBulletins = dbRes.rows.map(row => ({
+        id: row.id,
+        title: row.title,
+        message: row.message,
+        reference_no: `CC-2025-${row.id.toString().padStart(3, '0')}`,
+        category: row.scope === 'college_wide' ? 'COLLEGE-WIDE NOTICE' : (row.club_name ? `${row.club_name.toUpperCase()} DISPATCH` : 'CAMPUS NOTICE'),
+        posted_date_str: new Date(row.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+        issuer: row.author_name || (row.club_name || 'Dean of Student Affairs'),
+        signee: row.author_role === 'admin' ? 'College Administration' : 'Club Leadership Guild',
+        target_audience: row.scope === 'college_wide' ? 'All Enrolled Students' : (row.club_name ? `${row.club_name} Members` : 'All Campus Students'),
+        reads_count: 1420 + row.id * 180,
+        reads_percentage: Math.min(95, 60 + row.id * 5),
+        clarifications_count: 3 + row.id,
+        priority: row.priority || 'normal',
+        scope: row.scope || 'college_wide',
+        pinned: row.priority === 'urgent' || row.priority === 'high',
+        created_at: row.created_at
+      }));
+    } catch (e) {
+      console.warn('Failed to query DB announcements, using memory list:', e.message);
+    }
+
+    // Merge in-memory bulletins and DB bulletins without duplicate IDs
+    const seenIds = new Set();
+    let list = [];
+    for (const b of [...bulletins, ...dbBulletins]) {
+      if (!seenIds.has(b.id)) {
+        seenIds.add(b.id);
+        list.push(b);
+      }
+    }
 
     // Filter tab
-    if (filter === 'urgent') {
-      list = list.filter(b => b.priority === 'urgent' || b.priority === 'pinned');
-    } else if (filter === 'academic') {
-      list = list.filter(b => b.category?.includes('ACADEMIC') || b.category?.includes('SENATE'));
-    } else if (filter === 'student') {
-      list = list.filter(b => b.category?.includes('STUDENT') || b.scope === 'club');
+    if (filter && filter !== 'undefined' && filter !== 'all') {
+      if (filter === 'urgent') {
+        list = list.filter(b => b.priority === 'urgent' || b.priority === 'pinned');
+      } else if (filter === 'academic') {
+        list = list.filter(b => b.category?.includes('ACADEMIC') || b.category?.includes('SENATE'));
+      } else if (filter === 'student') {
+        list = list.filter(b => b.category?.includes('STUDENT') || b.scope === 'club');
+      }
     }
 
     // Search query
-    if (search) {
-      const q = search.toLowerCase();
+    if (search && search !== 'undefined' && search.trim()) {
+      const q = search.trim().toLowerCase();
       list = list.filter(b =>
         b.title?.toLowerCase().includes(q) ||
         b.message?.toLowerCase().includes(q) ||

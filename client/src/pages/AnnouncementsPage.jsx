@@ -28,13 +28,15 @@ import {
   Send,
   Eye,
   MessageSquare,
-  HelpCircle
+  HelpCircle,
+  X
 } from 'lucide-react';
 
 export default function AnnouncementsPage() {
   const { user, role } = useAuth();
   const [bulletins, setBulletins] = useState([]);
   const [urgentAdvisory, setUrgentAdvisory] = useState(null);
+  const [advisoryDismissed, setAdvisoryDismissed] = useState(false);
   const [stats, setStats] = useState(null);
   const [subscribedFeeds, setSubscribedFeeds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +74,7 @@ export default function AnnouncementsPage() {
       setLoading(true);
       const res = await api.getAnnouncements({
         filter: activeFilter === 'all' ? undefined : activeFilter,
-        search: searchQuery || undefined,
+        search: searchQuery.trim() || undefined,
         sort: selectedSort
       });
       setBulletins(res.bulletins || []);
@@ -89,6 +91,18 @@ export default function AnnouncementsPage() {
   useEffect(() => {
     fetchAnnouncements();
   }, [activeFilter, selectedSort]);
+
+  // Handle search when user types or presses Enter
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchAnnouncements();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Acknowledge the urgent weather notice
   const handleAcknowledgeAdvisory = async () => {
@@ -230,7 +244,7 @@ export default function AnnouncementsPage() {
         <div className="flex flex-wrap items-center gap-2.5 shrink-0 pt-2 lg:pt-0">
           <div className="relative inline-block">
             <button
-              onClick={() => alert('Filter Department: Select engineering, arts, or business.')}
+              onClick={() => alert('Department Filter: Showing all university departments')}
               className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-2 shadow-2xs transition"
             >
               <Building2 className="w-3.5 h-3.5 text-slate-400" />
@@ -259,8 +273,8 @@ export default function AnnouncementsPage() {
         </div>
       </div>
 
-      {/* 2. URGENT WEATHER ADVISORY BANNER (SCREEN ACCURATE) */}
-      {urgentAdvisory && (
+      {/* 2. URGENT WEATHER ADVISORY BANNER (DISMISSIBLE ON USER REQUEST) */}
+      {urgentAdvisory && !advisoryDismissed && (
         <div className="rounded-2xl bg-gradient-to-r from-rose-50/90 via-orange-50/50 to-amber-50/60 border-l-4 border-l-rose-500 border border-rose-200/80 p-5 shadow-xs relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 border border-rose-200">
@@ -317,11 +331,20 @@ export default function AnnouncementsPage() {
                 <span>Acknowledge Notice</span>
               )}
             </button>
+
+            {/* Dismiss button to remove banner */}
+            <button
+              onClick={() => setAdvisoryDismissed(true)}
+              title="Remove Banner"
+              className="w-8 h-8 rounded-full bg-white/70 hover:bg-white text-slate-500 hover:text-slate-800 border border-slate-200 flex items-center justify-center transition shadow-2xs"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
 
-      {/* 3. 4 KEY METRIC TILES MATCHING SCREEN */}
+      {/* 3. 4 KEY METRIC TILES */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1: Active Notices */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs relative overflow-hidden">
@@ -332,7 +355,7 @@ export default function AnnouncementsPage() {
             </div>
           </div>
           <div className="text-3xl font-black text-slate-900 tracking-tight">
-            {stats?.activeNotices || 18}
+            {bulletins.length || stats?.activeNotices || 18}
             <span className="text-xs font-semibold text-slate-400 ml-1.5 font-sans">Published</span>
           </div>
           <div className="mt-2 text-xs font-bold text-rose-600 flex items-center gap-1">
@@ -409,7 +432,7 @@ export default function AnnouncementsPage() {
                   : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
-              All Notices (18)
+              All Notices ({bulletins.length})
             </button>
 
             <button
@@ -421,7 +444,7 @@ export default function AnnouncementsPage() {
               }`}
             >
               <span className="w-2 h-2 rounded-full bg-rose-500" />
-              <span>Urgent Advisories (3)</span>
+              <span>Urgent Advisories</span>
             </button>
 
             <button
@@ -433,7 +456,7 @@ export default function AnnouncementsPage() {
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
-              <span>Academic & Exam (6)</span>
+              <span>Academic & Exam</span>
             </button>
 
             <button
@@ -445,11 +468,11 @@ export default function AnnouncementsPage() {
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Student Orgs (9)</span>
+              <span>Student Orgs & Clubs</span>
             </button>
           </div>
 
-          {/* Filter / Search Bar controls row matching image */}
+          {/* Filter / Search Bar controls row */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
             <div className="relative w-full sm:w-64">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -457,7 +480,7 @@ export default function AnnouncementsPage() {
                 type="text"
                 placeholder="Filter current list..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 className="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -495,156 +518,166 @@ export default function AnnouncementsPage() {
 
           {/* Bulletin Cards List */}
           <div className="space-y-4">
-            {bulletins.map((b) => {
-              const isBookmarked = bookmarks.has(b.id);
+            {loading ? (
+              <div className="p-12 text-center text-xs text-slate-400 bg-white rounded-3xl border border-slate-200">
+                Loading campus dispatches...
+              </div>
+            ) : bulletins.length === 0 ? (
+              <div className="p-12 text-center text-xs text-slate-400 bg-white rounded-3xl border border-slate-200">
+                No active announcements match your filter.
+              </div>
+            ) : (
+              bulletins.map((b) => {
+                const isBookmarked = bookmarks.has(b.id);
 
-              return (
-                <div
-                  key={b.id}
-                  className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:border-indigo-200 transition space-y-4 relative"
-                >
-                  {/* Card Header: Category Badge + Reference Code + Timestamp */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider text-[10px] ${
-                        b.category?.includes('PINNED')
-                          ? 'bg-purple-100 text-purple-800 border border-purple-200'
-                          : b.category?.includes('CAREER')
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : b.category?.includes('CAMPUS LIFE')
-                          ? 'bg-indigo-100 text-indigo-800 border border-indigo-200'
-                          : 'bg-amber-100 text-amber-800 border border-amber-200'
-                      }`}>
-                        {b.category}
-                      </span>
+                return (
+                  <div
+                    key={b.id}
+                    className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:border-indigo-200 transition space-y-4 relative"
+                  >
+                    {/* Card Header: Category Badge + Reference Code + Timestamp */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider text-[10px] ${
+                          b.category?.includes('PINNED') || b.category?.includes('ACADEMIC')
+                            ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                            : b.category?.includes('CAREER')
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            : b.category?.includes('CAMPUS LIFE') || b.category?.includes('COLLEGE')
+                            ? 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                            : 'bg-amber-100 text-amber-800 border border-amber-200'
+                        }`}>
+                          {b.category}
+                        </span>
 
-                      <span className="font-mono text-slate-500 font-bold">
-                        REF: {b.reference_no}
-                      </span>
+                        <span className="font-mono text-slate-500 font-bold">
+                          REF: {b.reference_no}
+                        </span>
+                      </div>
+
+                      <div className="text-slate-400 font-medium flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{b.posted_date_str}</span>
+                      </div>
                     </div>
 
-                    <div className="text-slate-400 font-medium flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{b.posted_date_str}</span>
-                    </div>
-                  </div>
+                    {/* Headline Title */}
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-900 leading-snug">
+                      {b.title}
+                    </h2>
 
-                  {/* Headline Title */}
-                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 leading-snug">
-                    {b.title}
-                  </h2>
-
-                  {/* Signee Metadata Line */}
-                  <div className="text-xs text-slate-500 flex flex-wrap items-center gap-2">
-                    <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>{b.issuer}</span>
-                    </span>
-                    {b.signee && <span>• {b.signee}</span>}
-                    {b.target_audience && (
-                      <span className="text-indigo-600 font-semibold">
-                        • Target: {b.target_audience}
+                    {/* Signee Metadata Line */}
+                    <div className="text-xs text-slate-500 flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>{b.issuer}</span>
                       </span>
+                      {b.signee && <span>• {b.signee}</span>}
+                      {b.target_audience && (
+                        <span className="text-indigo-600 font-semibold">
+                          • Target: {b.target_audience}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Notice Content Paragraph */}
+                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+                      {b.message}
+                    </p>
+
+                    {/* Optional Attachments / Portal Links */}
+                    {(b.attachment_name || b.portal_link || b.ballot_url) && (
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        {b.attachment_name && (
+                          <a
+                            href="#download"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              alert(`Downloading official document: ${b.attachment_name}`);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-2 transition"
+                          >
+                            <FileText className="w-4 h-4 text-indigo-600" />
+                            <span>{b.attachment_name}</span>
+                            {b.attachment_size && (
+                              <span className="text-[10px] text-slate-400 font-normal">({b.attachment_size})</span>
+                            )}
+                          </a>
+                        )}
+
+                        {b.portal_link && (
+                          <a
+                            href={b.portal_link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs font-semibold flex items-center gap-1.5 transition"
+                          >
+                            <span>View Academic Calendar Portal</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+
+                        {b.ballot_url && (
+                          <a
+                            href={b.ballot_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 text-xs font-semibold flex items-center gap-1.5 transition"
+                          >
+                            <span>Open Ballot Page</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
                     )}
-                  </div>
 
-                  {/* Notice Content Paragraph */}
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">
-                    {b.message}
-                  </p>
-
-                  {/* Optional Attachments / Portal Links */}
-                  {(b.attachment_name || b.portal_link || b.ballot_url) && (
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      {b.attachment_name && (
-                        <a
-                          href="#download"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            alert(`Downloading official document: ${b.attachment_name}`);
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-2 transition"
-                        >
-                          <FileText className="w-4 h-4 text-indigo-600" />
-                          <span>{b.attachment_name}</span>
-                          {b.attachment_size && (
-                            <span className="text-[10px] text-slate-400 font-normal">({b.attachment_size})</span>
-                          )}
-                        </a>
-                      )}
-
-                      {b.portal_link && (
-                        <a
-                          href={b.portal_link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs font-semibold flex items-center gap-1.5 transition"
-                        >
-                          <span>View Academic Calendar Portal</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      )}
-
-                      {b.ballot_url && (
-                        <a
-                          href={b.ballot_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 text-xs font-semibold flex items-center gap-1.5 transition"
-                        >
-                          <span>Open Ballot Page</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Card Footer: Read counts, clarifications, bookmark & share */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs text-slate-500">
-                    <div className="flex items-center gap-4">
-                      <span className="flex items-center gap-1 font-medium">
-                        <Eye className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{b.reads_count?.toLocaleString()} Reads ({b.reads_percentage}% of cohort)</span>
-                      </span>
-
-                      {b.clarifications_count !== undefined && (
-                        <span className="flex items-center gap-1 text-slate-500">
-                          <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{b.clarifications_count} Public Clarifications</span>
+                    {/* Card Footer: Read counts, clarifications, bookmark & share */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs text-slate-500">
+                      <div className="flex items-center gap-4">
+                        <span className="flex items-center gap-1 font-medium">
+                          <Eye className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{b.reads_count?.toLocaleString()} Reads ({b.reads_percentage}% of cohort)</span>
                         </span>
-                      )}
 
-                      {b.rsvp_synced && (
-                        <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                          <span>RSVP Auto-synced</span>
-                        </span>
-                      )}
-                    </div>
+                        {b.clarifications_count !== undefined && (
+                          <span className="flex items-center gap-1 text-slate-500">
+                            <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{b.clarifications_count} Public Clarifications</span>
+                          </span>
+                        )}
 
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => toggleBookmark(b.id)}
-                        className={`flex items-center gap-1 text-xs font-medium transition ${
-                          isBookmarked ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                      >
-                        <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-current text-indigo-600' : ''}`} />
-                        <span>{isBookmarked ? 'Bookmarked' : 'Bookmark'}</span>
-                      </button>
+                        {b.rsvp_synced && (
+                          <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>RSVP Auto-synced</span>
+                          </span>
+                        )}
+                      </div>
 
-                      <button
-                        onClick={() => handleShareNotice(b)}
-                        className="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                        <span>Share to Email</span>
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => toggleBookmark(b.id)}
+                          className={`flex items-center gap-1 text-xs font-medium transition ${
+                            isBookmarked ? 'text-indigo-600 font-bold' : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-current text-indigo-600' : ''}`} />
+                          <span>{isBookmarked ? 'Bookmarked' : 'Bookmark'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleShareNotice(b)}
+                          className="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800 transition"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Share to Email</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
