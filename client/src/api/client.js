@@ -112,6 +112,12 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(data)
   }),
+  acknowledgeAdvisory: () => apiRequest('/announcements/urgent/acknowledge', {
+    method: 'POST'
+  }),
+  toggleFeed: (id) => apiRequest(`/announcements/feeds/${id}/toggle`, {
+    method: 'POST'
+  }),
   getNotifications: () => apiRequest('/notifications'),
   markNotificationRead: (id) => apiRequest(`/notifications/${id}/read`, {
     method: 'PATCH'
