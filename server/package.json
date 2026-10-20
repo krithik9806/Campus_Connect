@@ -1,0 +1,22 @@
+{
+  "name": "campusconnect-server",
+  "version": "1.0.0",
+  "description": "CampusConnect Backend API Server",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.13.3",
+    "pg-mem": "^3.0.5",
+    "qrcode": "^1.5.4",
+    "sql.js": "^1.15.1"
+  }
+}

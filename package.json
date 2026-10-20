@@ -1,0 +1,14 @@
+{
+  "name": "campusconnect",
+  "version": "1.0.0",
+  "description": "CampusConnect - College Community Hub Full Stack Application",
+  "scripts": {
+    "start": "cd server && npm start",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "build": "cd client && npm run build"
+  },
+  "keywords": ["campus", "events", "college", "react", "express", "postgresql"],
+  "author": "CampusConnect Team",
+  "license": "ISC"
+}
