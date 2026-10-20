@@ -358,10 +358,6 @@ export default function AnnouncementsPage() {
             {bulletins.length || stats?.activeNotices || 18}
             <span className="text-xs font-semibold text-slate-400 ml-1.5 font-sans">Published</span>
           </div>
-          <div className="mt-2 text-xs font-bold text-rose-600 flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-            <span>! {stats?.highPriorityCount || 4} High Priority / Pinned</span>
-          </div>
         </div>
 
         {/* Metric 2: Campus Reach */}
