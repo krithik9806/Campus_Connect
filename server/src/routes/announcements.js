@@ -270,6 +270,102 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
+// Mock clarifications store
+const announcementClarifications = {
+  101: [
+    {
+      id: 1,
+      question: "Does the elective drop freeze apply to accelerated 8-week module courses?",
+      answer: "No, accelerated 8-week courses follow Section 4B of the Academic Senate bylaws with independent mid-term drop deadlines. Please consult your course syllabus or academic advisor.",
+      author: "Academic Affairs Helpdesk",
+      timestamp: "Oct 24, 2025 • 10:30 AM"
+    },
+    {
+      id: 2,
+      question: "Will grade deficiency notices impact financial aid eligibility immediately?",
+      answer: "Deficiency warnings are purely advisory notifications. Financial aid status reviews occur strictly at the conclusion of the semester after final grades are certified.",
+      author: "Office of Financial Aid",
+      timestamp: "Oct 24, 2025 • 11:15 AM"
+    }
+  ],
+  102: [
+    {
+      id: 3,
+      question: "Will hard-copy printed resumes be required, or can recruiters scan digital QR profiles?",
+      answer: "Both methods are supported. Digital resume QR passes are available inside your CampusConnect profile, and fast-track printing booths are open in Innovation Lab Lobby.",
+      author: "Career Development Cell",
+      timestamp: "Oct 23, 2025 • 15:45 PM"
+    },
+    {
+      id: 4,
+      question: "Can first-year freshmen attend Day 2 technical interviews?",
+      answer: "Freshmen are welcome to attend the career exploration exhibits, but interview booths on Floor 3 are reserved for sophomores, juniors, and seniors.",
+      author: "Corporate Relations Lead",
+      timestamp: "Oct 23, 2025 • 16:10 PM"
+    }
+  ],
+  103: [
+    {
+      id: 5,
+      question: "Will laundry machine card readers in the dorm basement work during the 2AM-5AM maintenance?",
+      answer: "Yes, laundry payment terminals operate on local offline cache and will not be disrupted during the core fiber upgrade.",
+      author: "Campus IT Network Ops",
+      timestamp: "Oct 22, 2025 • 12:20 PM"
+    }
+  ],
+  104: [
+    {
+      id: 6,
+      question: "Can individual club members vote or only designated club presidents and treasurers?",
+      answer: "All registered undergraduate and graduate students with active student IDs are eligible to vote on the general ballot amendments.",
+      author: "Student Government Elections Commission",
+      timestamp: "Oct 21, 2025 • 17:05 PM"
+    }
+  ]
+};
+
+// GET clarifications for an announcement
+router.get('/:id/clarifications', (req, res) => {
+  const { id } = req.params;
+  const list = announcementClarifications[id] || [];
+  return res.json({ clarifications: list });
+});
+
+// POST a new clarification inquiry for an announcement
+router.post('/:id/clarifications', optionalAuthenticate, (req, res) => {
+  const { id } = req.params;
+  const { question } = req.body;
+  if (!question || !question.trim()) {
+    return res.status(400).json({ error: 'Question content is required.' });
+  }
+
+  if (!announcementClarifications[id]) {
+    announcementClarifications[id] = [];
+  }
+
+  const newClarification = {
+    id: Date.now(),
+    question: question.trim(),
+    answer: "Your inquiry has been logged in the Registrar & Department Dispatch Desk. An authorized advisor will update this public notice with official remarks within 2 business hours.",
+    author: req.user?.name || "Student Inquirer",
+    timestamp: "Just now"
+  };
+
+  announcementClarifications[id].push(newClarification);
+
+  // Update bulletin clarifications count if in memory
+  const bulletin = bulletins.find(b => b.id == id);
+  if (bulletin) {
+    bulletin.clarifications_count = (bulletin.clarifications_count || 0) + 1;
+  }
+
+  return res.status(201).json({
+    success: true,
+    clarification: newClarification,
+    clarifications: announcementClarifications[id]
+  });
+});
+
 // Toggle subscribed feed
 router.post('/feeds/:id/toggle', authenticate, (req, res) => {
   const { id } = req.params;

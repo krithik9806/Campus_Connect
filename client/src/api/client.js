@@ -124,6 +124,11 @@ export const api = {
   toggleFeed: (id) => apiRequest(`/announcements/feeds/${id}/toggle`, {
     method: 'POST'
   }),
+  getClarifications: (id) => apiRequest(`/announcements/${id}/clarifications`),
+  postClarification: (id, question) => apiRequest(`/announcements/${id}/clarifications`, {
+    method: 'POST',
+    body: JSON.stringify({ question })
+  }),
   getNotifications: () => apiRequest('/notifications'),
   markNotificationRead: (id) => apiRequest(`/notifications/${id}/read`, {
     method: 'PATCH'
