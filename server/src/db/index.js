@@ -122,6 +122,19 @@ export async function initDb() {
       ticket_code TEXT UNIQUE NOT NULL,
       status TEXT DEFAULT 'registered',
       qr_token TEXT NOT NULL,
+      academic_year TEXT DEFAULT '3rd Year',
+      phone_number TEXT DEFAULT '+1 (555) 234-5678',
+      emergency_contact TEXT,
+      participation_type TEXT DEFAULT 'individual',
+      team_name TEXT,
+      team_members TEXT,
+      dietary_pref TEXT DEFAULT 'Vegetarian',
+      tshirt_size TEXT DEFAULT 'M',
+      portfolio_url TEXT,
+      special_accommodations TEXT,
+      code_of_conduct_agreed BOOLEAN DEFAULT 1,
+      certificate_issued BOOLEAN DEFAULT 0,
+      certificate_id TEXT,
       registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(event_id, user_id)
     );
@@ -178,6 +191,34 @@ export async function initDb() {
   `;
 
   sqlJsDb.run(sqliteSchema);
+
+  // Auto-migrate any existing databases to have the new real-world fields
+  const newCols = [
+    { table: 'registrations', col: 'academic_year', type: 'TEXT DEFAULT "3rd Year"' },
+    { table: 'registrations', col: 'phone_number', type: 'TEXT DEFAULT "+1 (555) 234-5678"' },
+    { table: 'registrations', col: 'emergency_contact', type: 'TEXT' },
+    { table: 'registrations', col: 'participation_type', type: 'TEXT DEFAULT "individual"' },
+    { table: 'registrations', col: 'team_name', type: 'TEXT' },
+    { table: 'registrations', col: 'team_members', type: 'TEXT' },
+    { table: 'registrations', col: 'dietary_pref', type: 'TEXT DEFAULT "Vegetarian"' },
+    { table: 'registrations', col: 'tshirt_size', type: 'TEXT DEFAULT "M"' },
+    { table: 'registrations', col: 'portfolio_url', type: 'TEXT' },
+    { table: 'registrations', col: 'special_accommodations', type: 'TEXT' },
+    { table: 'registrations', col: 'code_of_conduct_agreed', type: 'BOOLEAN DEFAULT 1' },
+    { table: 'registrations', col: 'certificate_issued', type: 'BOOLEAN DEFAULT 0' },
+    { table: 'registrations', col: 'certificate_id', type: 'TEXT' },
+    { table: 'clubs', col: 'faculty_advisor', type: 'TEXT DEFAULT "Dr. Sundar Rao (Dept. Head)"' },
+    { table: 'clubs', col: 'compliance_status', type: 'TEXT DEFAULT "Good Standing"' }
+  ];
+
+  for (const c of newCols) {
+    try {
+      sqlJsDb.run(`ALTER TABLE ${c.table} ADD COLUMN ${c.col} ${c.type};`);
+    } catch (e) {
+      // Column already exists, safe to ignore
+    }
+  }
+
   saveToDisk();
 
   console.log('Database schema verified.');

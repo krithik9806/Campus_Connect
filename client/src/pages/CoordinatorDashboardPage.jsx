@@ -18,7 +18,13 @@ import {
   ChevronDown,
   RefreshCw,
   Flame,
-  ArrowUpRight
+  ArrowUpRight,
+  Award,
+  Utensils,
+  Shirt,
+  ShieldCheck,
+  Building2,
+  Phone
 } from 'lucide-react';
 
 export default function CoordinatorDashboardPage() {
@@ -34,12 +40,15 @@ export default function CoordinatorDashboardPage() {
   // Scanner & Manual verification state
   const [manualCode, setManualCode] = useState('');
   const [scanStatus, setScanStatus] = useState(null); // { success: bool, message: str, attendee: obj }
-  const [scanningActive, setScanningActive] = useState(false);
 
   // Broadcast state
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcastSuccess, setBroadcastSuccess] = useState(false);
+
+  // Certificate Issuance State
+  const [issuingCerts, setIssuingCerts] = useState(false);
+  const [certSuccessMessage, setCertSuccessMessage] = useState('');
 
   // Fetch coordinator's events
   const loadEvents = async () => {
@@ -130,6 +139,27 @@ export default function CoordinatorDashboardPage() {
     }
   };
 
+  // Issue Verified Certificates for Attendees
+  const handleIssueCertificates = async () => {
+    if (!selectedEventId) return;
+    setIssuingCerts(true);
+    setCertSuccessMessage('');
+    try {
+      const res = await api.issueCertificates(selectedEventId);
+      setCertSuccessMessage(res.message);
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.5 }
+      });
+      fetchEventData();
+    } catch (err) {
+      alert(err.message || 'Failed to issue certificates.');
+    } finally {
+      setIssuingCerts(false);
+    }
+  };
+
   // Broadcast announcement to event attendees
   const handleBroadcast = async (e) => {
     e.preventDefault();
@@ -152,25 +182,45 @@ export default function CoordinatorDashboardPage() {
     }
   };
 
-  // Export Attendees to CSV
+  // Export Attendees to CSV (includes practical fields)
   const exportCSV = () => {
     if (!attendees.length) return;
-    const headers = ['Name', 'Email', 'Student ID', 'Department', 'Ticket Code', 'Check-In Status', 'Checked-In Time'];
+    const headers = [
+      'Name',
+      'Email',
+      'Student ID',
+      'Academic Year',
+      'Phone Number',
+      'Emergency Contact',
+      'Format',
+      'Team Name',
+      'Dietary Preference',
+      'T-Shirt Size',
+      'Ticket Code',
+      'Check-In Status',
+      'Certificate ID'
+    ];
     const rows = attendees.map(a => [
       `"${a.name}"`,
       `"${a.email}"`,
-      `"${a.student_id}"`,
-      `"${a.department}"`,
+      `"${a.student_id || ''}"`,
+      `"${a.academic_year || '3rd Year'}"`,
+      `"${a.phone_number || ''}"`,
+      `"${a.emergency_contact || ''}"`,
+      `"${a.participation_type || 'solo'}"`,
+      `"${a.team_name || ''}"`,
+      `"${a.dietary_pref || 'Veg'}"`,
+      `"${a.tshirt_size || 'M'}"`,
       `"${a.ticket_code}"`,
       a.attendance_id ? 'Checked In' : 'Pending',
-      a.checked_in_at ? `"${new Date(a.checked_in_at).toLocaleString()}"` : 'N/A'
+      `"${a.certificate_id || 'Pending Issuance'}"`
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `attendees_event_${selectedEventId}.csv`);
+    link.setAttribute('download', `attendees_logistics_event_${selectedEventId}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -190,13 +240,27 @@ export default function CoordinatorDashboardPage() {
       a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       a.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       a.ticket_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (a.student_id && a.student_id.toLowerCase().includes(searchQuery.toLowerCase()));
+      (a.student_id && a.student_id.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (a.team_name && a.team_name.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return matchesTab && matchesSearch;
   });
 
   const checkedInCount = attendees.filter(a => !!a.attendance_id).length;
   const pendingCount = attendees.length - checkedInCount;
+
+  // Real-world practical tallies for Event Logistics: Catering & Swag
+  const dietarySummary = attendees.reduce((acc, a) => {
+    const pref = a.dietary_pref || 'Veg';
+    acc[pref] = (acc[pref] || 0) + 1;
+    return acc;
+  }, {});
+
+  const tshirtSummary = attendees.reduce((acc, a) => {
+    const size = a.tshirt_size || 'M';
+    acc[size] = (acc[size] || 0) + 1;
+    return acc;
+  }, {});
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300">
@@ -238,13 +302,22 @@ export default function CoordinatorDashboardPage() {
         </div>
 
         {/* Action CTAs */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleIssueCertificates}
+            disabled={issuingCerts || checkedInCount === 0}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold transition shadow-sm disabled:opacity-50"
+          >
+            <Award className="w-4 h-4 text-slate-950" />
+            <span>{issuingCerts ? 'Issuing Credentials...' : 'Issue Verified Certificates'}</span>
+          </button>
+
           <button
             onClick={exportCSV}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition shadow-2xs"
           >
             <Download className="w-4 h-4 text-slate-500" />
-            <span>Export Attendee List</span>
+            <span>Export Logistics CSV</span>
           </button>
 
           <button
@@ -257,6 +330,18 @@ export default function CoordinatorDashboardPage() {
         </div>
       </div>
 
+      {certSuccessMessage && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-2 shadow-xs">
+          <div className="flex items-center gap-2">
+            <Award className="w-5 h-5 text-amber-600 shrink-0" />
+            <span className="font-semibold">{certSuccessMessage}</span>
+          </div>
+          <button onClick={() => setCertSuccessMessage('')} className="text-amber-700 font-bold hover:underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* 4 Key Metrics Cards (Screen 3) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Metric 1: Total Registrations */}
@@ -266,7 +351,7 @@ export default function CoordinatorDashboardPage() {
             <Users className="w-4 h-4 text-indigo-600" />
           </div>
           <div className="text-3xl font-black text-slate-900 tracking-tight">
-            {stats?.totalRegistrations || 842}
+            {stats?.totalRegistrations || attendees.length || 842}
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
             <span className="px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-[10px] flex items-center gap-0.5">
@@ -284,10 +369,10 @@ export default function CoordinatorDashboardPage() {
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-3xl font-black text-slate-900 tracking-tight">
-            {checkedInCount || stats?.checkedIn || 318}
+            {checkedInCount}
           </div>
           <div className="mt-2 text-xs font-semibold text-indigo-600">
-            {stats?.turnoutRate || '37.8%'} Turnout Rate
+            {attendees.length > 0 ? Math.round((checkedInCount / attendees.length) * 100) : 0}% Turnout Rate
           </div>
         </div>
 
@@ -298,10 +383,10 @@ export default function CoordinatorDashboardPage() {
             <Clock className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-3xl font-black text-slate-900 tracking-tight">
-            {stats?.remainingSeats || 24}
+            {Math.max(0, (selectedEvent?.capacity || 100) - (stats?.totalRegistrations || attendees.length))}
           </div>
           <div className="mt-2 text-xs text-slate-500">
-            of {selectedEvent?.capacity || 866} total venue cap
+            of {selectedEvent?.capacity || 100} total venue cap
           </div>
         </div>
 
@@ -317,6 +402,46 @@ export default function CoordinatorDashboardPage() {
           </div>
           <div className="mt-2 text-xs text-slate-500">
             Based on 124 live ratings
+          </div>
+        </div>
+      </div>
+
+      {/* REAL-WORLD SURVIVAL BAR: CATERING & SWAG LOGISTICS BREAKDOWN */}
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl border border-indigo-900/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+            <Utensils className="w-4 h-4" />
+            <span>Event Ops & Hospitality Manifest</span>
+          </div>
+          <h4 className="text-base font-bold text-white">
+            On-Ground Catering & Merchandise Headcount
+          </h4>
+          <p className="text-xs text-slate-400">
+            Calculated automatically from student registration details for vendor procurement.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Dietary Badges */}
+          <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl px-3.5 py-2 flex items-center gap-3 text-xs">
+            <span className="text-slate-400 font-semibold flex items-center gap-1">
+              <Utensils className="w-3.5 h-3.5 text-emerald-400" />
+              Meals:
+            </span>
+            <span className="text-emerald-400 font-bold">Veg: {dietarySummary['Veg'] || 0}</span>
+            <span className="text-indigo-300 font-bold">Non-Veg: {dietarySummary['Non-Veg'] || 0}</span>
+            <span className="text-amber-300 font-bold">Jain: {dietarySummary['Jain'] || 0}</span>
+          </div>
+
+          {/* Swag Badges */}
+          <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl px-3.5 py-2 flex items-center gap-3 text-xs">
+            <span className="text-slate-400 font-semibold flex items-center gap-1">
+              <Shirt className="w-3.5 h-3.5 text-indigo-400" />
+              T-Shirts:
+            </span>
+            <span className="font-mono text-indigo-200">
+              S:{tshirtSummary['S'] || 0} | M:{tshirtSummary['M'] || 0} | L:{tshirtSummary['L'] || 0} | XL:{tshirtSummary['XL'] || 0}
+            </span>
           </div>
         </div>
       </div>
@@ -383,14 +508,14 @@ export default function CoordinatorDashboardPage() {
               </button>
             </div>
 
-            {/* Attendee Table */}
+            {/* Attendee Table with Practical Details */}
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 text-slate-400 uppercase tracking-wider text-[10px] font-bold">
                     <th className="pb-3 pl-2">Attendee Details</th>
-                    <th className="pb-3">Ticket Code</th>
-                    <th className="pb-3">Department</th>
+                    <th className="pb-3">Ticket / Format</th>
+                    <th className="pb-3">Catering / Swag</th>
                     <th className="pb-3">Check-In Status</th>
                     <th className="pb-3 text-right pr-2">Action</th>
                   </tr>
@@ -418,23 +543,43 @@ export default function CoordinatorDashboardPage() {
                               />
                               <div>
                                 <div className="font-bold text-slate-900">{att.name}</div>
-                                <div className="text-[11px] text-slate-500 font-mono">
-                                  {att.student_id || 'CS-2024-102'}
+                                <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1.5">
+                                  <span>{att.student_id || 'CS-2024-102'}</span>
+                                  {att.phone_number && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="text-slate-400">{att.phone_number}</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>
                           </td>
 
-                          {/* Ticket Code */}
-                          <td className="py-3.5 font-mono text-slate-600 font-medium">
-                            <span className="bg-slate-100 px-2 py-0.5 rounded text-[11px] font-bold">
+                          {/* Ticket Code & Format */}
+                          <td className="py-3.5">
+                            <span className="bg-slate-100 px-2 py-0.5 rounded text-[11px] font-mono font-bold text-slate-700">
                               {att.ticket_code}
                             </span>
+                            <div className="text-[10px] text-indigo-600 font-medium mt-1">
+                              {att.participation_type === 'team' ? (
+                                <span className="font-semibold">Team: {att.team_name || 'Squad'}</span>
+                              ) : (
+                                <span>Solo Individual</span>
+                              )}
+                            </div>
                           </td>
 
-                          {/* Department */}
+                          {/* Logistics (Meals & T-shirt) */}
                           <td className="py-3.5 text-slate-600">
-                            {att.department || 'Computer Science'}
+                            <div className="flex items-center gap-1.5 text-[11px]">
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                                {att.dietary_pref || 'Veg'}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold">
+                                Size: {att.tshirt_size || 'M'}
+                              </span>
+                            </div>
                           </td>
 
                           {/* Status Badge */}
@@ -455,8 +600,9 @@ export default function CoordinatorDashboardPage() {
                           {/* Action Button */}
                           <td className="py-3.5 text-right pr-2">
                             {isCheckedIn ? (
-                              <span className="text-[11px] font-semibold text-slate-400">
-                                Verified ✓
+                              <span className="text-[11px] font-semibold text-emerald-600 flex items-center justify-end gap-1">
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                <span>Verified</span>
                               </span>
                             ) : (
                               <button

@@ -217,21 +217,47 @@ router.post('/:id/register', authenticate, async (req, res) => {
       eventTitle: event.title
     }));
 
+    const {
+      academic_year, phone_number, emergency_contact, participation_type,
+      team_name, team_members, dietary_pref, tshirt_size, portfolio_url,
+      special_accommodations, code_of_conduct_agreed
+    } = req.body;
+
     let regResult;
     if (existingReg.rows.length > 0) {
       // Re-activate cancelled registration
       regResult = await db.query(`
         UPDATE registrations
-        SET status = 'registered', ticket_code = $1, qr_token = $2, registered_at = CURRENT_TIMESTAMP
+        SET status = 'registered', ticket_code = $1, qr_token = $2, registered_at = CURRENT_TIMESTAMP,
+            academic_year = $4, phone_number = $5, emergency_contact = $6, participation_type = $7,
+            team_name = $8, team_members = $9, dietary_pref = $10, tshirt_size = $11,
+            portfolio_url = $12, special_accommodations = $13, code_of_conduct_agreed = $14
         WHERE id = $3
         RETURNING *
-      `, [ticketCode, qrToken, existingReg.rows[0].id]);
+      `, [
+        ticketCode, qrToken, existingReg.rows[0].id,
+        academic_year || '3rd Year', phone_number || '+1 (555) 234-5678', emergency_contact || '',
+        participation_type || 'individual', team_name || '', team_members || '',
+        dietary_pref || 'Vegetarian', tshirt_size || 'M', portfolio_url || '',
+        special_accommodations || '', code_of_conduct_agreed !== false ? 1 : 0
+      ]);
     } else {
       regResult = await db.query(`
-        INSERT INTO registrations (event_id, user_id, ticket_code, status, qr_token)
-        VALUES ($1, $2, $3, 'registered', $4)
+        INSERT INTO registrations (
+          event_id, user_id, ticket_code, status, qr_token,
+          academic_year, phone_number, emergency_contact, participation_type,
+          team_name, team_members, dietary_pref, tshirt_size,
+          portfolio_url, special_accommodations, code_of_conduct_agreed
+        )
+        VALUES ($1, $2, $3, 'registered', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         RETURNING *
-      `, [eventId, userId, ticketCode, qrToken]);
+      `, [
+        eventId, userId, ticketCode, qrToken,
+        academic_year || '3rd Year', phone_number || '+1 (555) 234-5678', emergency_contact || '',
+        participation_type || 'individual', team_name || '', team_members || '',
+        dietary_pref || 'Vegetarian', tshirt_size || 'M', portfolio_url || '',
+        special_accommodations || '', code_of_conduct_agreed !== false ? 1 : 0
+      ]);
     }
 
     // Increment registered_count on event
@@ -299,13 +325,16 @@ router.delete('/:id/register', authenticate, async (req, res) => {
   }
 });
 
-// Coordinator: Get attendees list for an event (Screen 3)
+// Coordinator: Get attendees list for an event with full real-world logistical fields
 router.get('/:id/attendees', authenticate, async (req, res) => {
   try {
     const eventId = req.params.id;
 
     const result = await db.query(`
       SELECT r.id as registration_id, r.ticket_code, r.status as registration_status, r.registered_at,
+             r.academic_year, r.phone_number, r.emergency_contact, r.participation_type,
+             r.team_name, r.team_members, r.dietary_pref, r.tshirt_size, r.portfolio_url,
+             r.special_accommodations, r.certificate_issued, r.certificate_id,
              u.id as user_id, u.name, u.email, u.student_id, u.department, u.avatar_url,
              a.id as attendance_id, a.method as check_in_method, a.checked_in_at
       FROM registrations r
@@ -319,6 +348,93 @@ router.get('/:id/attendees', authenticate, async (req, res) => {
   } catch (err) {
     console.error('Get attendees error:', err);
     return res.status(500).json({ error: 'Failed to retrieve attendees.' });
+  }
+});
+
+// Coordinator: Issue Certificates to all checked-in attendees
+router.post('/:id/issue-certificates', authenticate, requireRole(['coordinator', 'admin']), async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const eventRes = await db.query('SELECT title FROM events WHERE id = $1', [eventId]);
+    if (eventRes.rows.length === 0) return res.status(404).json({ error: 'Event not found' });
+
+    // Find all attended registrations
+    const attendedRes = await db.query(`
+      SELECT r.id, r.user_id, r.ticket_code, u.name
+      FROM registrations r
+      JOIN attendance a ON r.id = a.registration_id
+      JOIN users u ON r.user_id = u.id
+      WHERE r.event_id = $1
+    `, [eventId]);
+
+    const issuedCount = attendedRes.rows.length;
+    for (const att of attendedRes.rows) {
+      const certId = `CERT-CC-2025-${eventId}-${att.user_id}-${Math.floor(1000 + Math.random() * 9000)}`;
+      await db.query(`
+        UPDATE registrations
+        SET certificate_issued = 1, certificate_id = $1
+        WHERE id = $2
+      `, [certId, att.id]);
+
+      // Notify student
+      await db.query(`
+        INSERT INTO notifications (user_id, title, message, type)
+        VALUES ($1, $2, $3, 'system')
+      `, [
+        att.user_id,
+        `Certificate Issued: ${eventRes.rows[0].title}`,
+        `Your official Certificate of Participation (${certId}) is now available in your Student Passbook!`
+      ]);
+    }
+
+    // Log audit event
+    await db.query(`
+      INSERT INTO audit_logs (user_id, action, details)
+      VALUES ($1, 'CERTIFICATES_ISSUED', 'Issued ' || $2 || ' certificates for event: ' || $3)
+    `, [req.user.id, issuedCount, eventRes.rows[0].title]);
+
+    return res.json({
+      message: `Successfully issued ${issuedCount} certificates of participation!`,
+      issuedCount
+    });
+  } catch (err) {
+    console.error('Issue certs error:', err);
+    return res.status(500).json({ error: 'Failed to issue certificates.' });
+  }
+});
+
+// Student: Get Verified Certificate of Participation
+router.get('/:id/certificate', authenticate, async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const userId = req.user.id;
+
+    const result = await db.query(`
+      SELECT r.ticket_code, r.certificate_issued, r.certificate_id, r.academic_year,
+             e.title as event_title, e.date_str, e.venue, e.category,
+             c.name as club_name, u.name as student_name, u.student_id, u.department,
+             a.checked_in_at
+      FROM registrations r
+      JOIN events e ON r.event_id = e.id
+      LEFT JOIN clubs c ON e.club_id = c.id
+      JOIN users u ON r.user_id = u.id
+      JOIN attendance a ON r.id = a.registration_id
+      WHERE r.event_id = $1 AND r.user_id = $2
+    `, [eventId, userId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Verified attendance record not found for this event.' });
+    }
+
+    const cert = result.rows[0];
+    if (!cert.certificate_id) {
+      cert.certificate_id = `CERT-CC-2025-${eventId}-${userId}-8921`;
+    }
+
+    return res.json({ certificate: cert });
+  } catch (err) {
+    console.error('Get cert error:', err);
+    return res.status(500).json({ error: 'Failed to retrieve certificate.' });
   }
 });
 

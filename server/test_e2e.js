@@ -137,7 +137,16 @@ async function runTests() {
       method: 'POST',
       headers: { Authorization: `Bearer ${studentToken}` }
     });
-    const ticketCode = regRes.data.ticketCode || 'TKT-HACK-001';
+    let ticketCode = regRes.data?.ticketCode;
+    if (!ticketCode) {
+      // If already registered, fetch attendees list or registered events to find ticket code
+      const myEvRes = await req('/events', {
+        headers: { Authorization: `Bearer ${studentToken}` }
+      });
+      const registeredEv = (myEvRes.data.events || []).find(e => e.id === 1 && e.is_registered);
+      ticketCode = registeredEv?.user_ticket_code || 'TKT-HACK-001';
+    }
+
     const checkInRes = await req('/events/1/check-in', {
       method: 'POST',
       headers: { Authorization: `Bearer ${coordToken}` },

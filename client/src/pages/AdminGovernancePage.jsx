@@ -17,7 +17,12 @@ import {
   Activity,
   FileText,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  Award,
+  Layers,
+  Sparkles,
+  Search,
+  ExternalLink
 } from 'lucide-react';
 
 export default function AdminGovernancePage() {
@@ -25,20 +30,25 @@ export default function AdminGovernancePage() {
   const [stats, setStats] = useState(null);
   const [proposals, setProposals] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [clubsCompliance, setClubsCompliance] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('pending'); // pending, approved, rejected, audit
+  const [activeTab, setActiveTab] = useState('pending'); // pending, approved, rejected, compliance, audit
+  const [showAccreditationModal, setShowAccreditationModal] = useState(false);
+  const [accreditationReport, setAccreditationReport] = useState(null);
 
   const loadAdminData = async () => {
     try {
       setLoading(true);
-      const [statsRes, propRes, auditRes] = await Promise.all([
+      const [statsRes, propRes, auditRes, compRes] = await Promise.all([
         api.getAdminStats(),
         api.getProposals(),
-        api.getAuditLogs()
+        api.getAuditLogs(),
+        api.getClubsCompliance()
       ]);
       setStats(statsRes.stats);
       setProposals(propRes.proposals || []);
       setAuditLogs(auditRes.logs || []);
+      setClubsCompliance(compRes.clubs || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -75,6 +85,26 @@ export default function AdminGovernancePage() {
     }
   };
 
+  const handleFetchAccreditation = async () => {
+    try {
+      const res = await api.getAccreditationReport();
+      setAccreditationReport(res.report);
+      setShowAccreditationModal(true);
+    } catch (err) {
+      alert('Failed to generate report: ' + err.message);
+    }
+  };
+
+  const handleUpdateClubStanding = async (clubId, newStanding) => {
+    try {
+      await api.updateClubCompliance(clubId, { standing: newStanding });
+      const compRes = await api.getClubsCompliance();
+      setClubsCompliance(compRes.clubs || []);
+    } catch (err) {
+      alert(err.message || 'Failed to update club standing');
+    }
+  };
+
   const pendingProposals = proposals.filter(p => p.status === 'pending_approval');
   const approvedProposals = proposals.filter(p => p.status === 'approved');
   const rejectedProposals = proposals.filter(p => p.status === 'rejected');
@@ -86,30 +116,31 @@ export default function AdminGovernancePage() {
         <div>
           <div className="flex items-center gap-2 text-indigo-600 text-xs font-bold uppercase tracking-wider mb-1.5">
             <ShieldCheck className="w-4 h-4" />
-            <span>Administrative Governance</span>
+            <span>Institutional Governance & Dean Office</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
             Governance & <span className="text-indigo-600">Sanctions Bureau</span>
           </h1>
           <p className="text-sm text-slate-500 mt-1.5 max-w-2xl leading-relaxed">
-            Review pending event proposals, regulate club compliance, monitor platform audit trails, and approve high-impact campus events.
+            Review event proposals, regulate club charters, monitor institutional audit trails, and generate statutory accreditation metrics for NAAC / NIRF reporting.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => alert('Campus Policy Regulation Handbook v4.2 downloaded.')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition shadow-2xs"
+            onClick={handleFetchAccreditation}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition"
           >
-            <FileText className="w-4 h-4 text-slate-500" />
-            <span>Review Policies</span>
+            <Award className="w-4 h-4 text-amber-400" />
+            <span>Generate NAAC / NIRF Audit Report</span>
           </button>
 
           <button
-            onClick={() => alert('New Policy Decree modal opened.')}
+            onClick={() => setActiveTab('compliance')}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition active:scale-98"
           >
-            <span>+ Platform Policy</span>
+            <Building2 className="w-4 h-4" />
+            <span>Club Charter Oversight</span>
           </button>
         </div>
       </div>
@@ -123,11 +154,11 @@ export default function AdminGovernancePage() {
             <AlertTriangle className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-3xl font-black text-slate-900 tracking-tight">
-            {pendingProposals.length || stats?.pendingProposals || 7}
+            {pendingProposals.length}
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-700 font-semibold">
             <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-[10px]">
-              Requires Review
+              Requires Dean Sanction
             </span>
           </div>
         </div>
@@ -139,10 +170,10 @@ export default function AdminGovernancePage() {
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-3xl font-black text-slate-900 tracking-tight">
-            {approvedProposals.length || stats?.approvedEvents || 38}
+            {approvedProposals.length}
           </div>
           <div className="mt-2 text-xs font-semibold text-emerald-600">
-            Active This Term
+            Active This Academic Cycle
           </div>
         </div>
 
@@ -156,7 +187,7 @@ export default function AdminGovernancePage() {
             {stats?.totalRegistrations || 4219}
           </div>
           <div className="mt-2 text-xs font-semibold text-indigo-600">
-            +24% Month-over-Month
+            Extracurricular Enrollment
           </div>
         </div>
 
@@ -198,7 +229,7 @@ export default function AdminGovernancePage() {
       </div>
 
       {/* Filter Tabs (Screen 4) */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
         <button
           onClick={() => setActiveTab('pending')}
           className={`text-xs font-bold px-4 py-2 rounded-xl transition ${
@@ -219,6 +250,17 @@ export default function AdminGovernancePage() {
           }`}
         >
           Sanctioned & Approved ({approvedProposals.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('compliance')}
+          className={`text-xs font-bold px-4 py-2 rounded-xl transition ${
+            activeTab === 'compliance'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          Club Charters & Compliance ({clubsCompliance.length})
         </button>
 
         <button
@@ -244,139 +286,190 @@ export default function AdminGovernancePage() {
         </button>
       </div>
 
-      {/* Main Content Split: Left 2 Cols (Proposals) vs Right 1 Col (Compliance & Audit) */}
+      {/* Main Content Split: Left 2 Cols vs Right 1 Col */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Proposals List */}
+        {/* Left Column: Proposals / Club Compliance / Audit */}
         <div className="lg:col-span-2 space-y-6">
-          {activeTab === 'audit' ? (
-            /* Audit Trail View */
+          {/* TAB 1: CLUB CHARTER & COMPLIANCE MANAGER */}
+          {activeTab === 'compliance' && (
             <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
-              <h3 className="font-extrabold text-base text-slate-900">Platform System Audit Trail</h3>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">
+                    Recognized Student Organizations & Club Standing
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Faculty advisor supervision, disciplinary status, and budgetary sanction eligibility.
+                  </p>
+                </div>
+                <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+                  Dean Registry
+                </span>
+              </div>
+
               <div className="divide-y divide-slate-100">
-                {auditLogs.map((log) => (
-                  <div key={log.id} className="py-3 flex items-start justify-between gap-4 text-xs">
+                {clubsCompliance.map((club) => (
+                  <div key={club.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <span className="font-bold text-slate-900 font-mono text-[11px] bg-slate-100 px-1.5 py-0.5 rounded">
-                        {log.action}
-                      </span>
-                      <p className="text-slate-600 mt-1">{log.details}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-sm">{club.name}</span>
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                          {club.category}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-3">
+                        <span>Advisor: <strong className="text-slate-700">{club.faculty_advisor || 'Dr. Robert Chen'}</strong></span>
+                        <span>•</span>
+                        <span>Audited Events: <strong className="text-indigo-600">{club.event_count || 1}</strong></span>
+                        <span>•</span>
+                        <span>Charter Reg: #{club.id.toString().padStart(4, '0')}</span>
+                      </div>
                     </div>
-                    <span className="text-[10px] text-slate-400 shrink-0">
-                      {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={club.compliance_standing || 'good_standing'}
+                        onChange={(e) => handleUpdateClubStanding(club.id, e.target.value)}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-xl border focus:outline-none cursor-pointer ${
+                          club.compliance_standing === 'warning'
+                            ? 'bg-amber-50 text-amber-800 border-amber-300'
+                            : club.compliance_standing === 'probation'
+                            ? 'bg-rose-50 text-rose-800 border-rose-300'
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                        }`}
+                      >
+                        <option value="good_standing">Good Standing</option>
+                        <option value="warning">Notice / Warning</option>
+                        <option value="probation">Probation / Suspended</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: AUDIT LOG */}
+          {activeTab === 'audit' && (
+            <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
+              <h3 className="font-bold text-sm uppercase tracking-wider text-slate-500">
+                Immutable Governance Audit Trail
+              </h3>
+              <div className="divide-y divide-slate-100 text-xs">
+                {auditLogs.map((log) => (
+                  <div key={log.id} className="py-3 flex items-center justify-between gap-4">
+                    <div>
+                      <div className="font-bold text-slate-900">{log.action}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        Target: {log.target_type} #{log.target_id} • User: {log.performed_by_name || 'Admin'}
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      {new Date(log.created_at).toLocaleString()}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
-          ) : (
-            /* Event Proposals Cards (Matching Screen 4) */
-            <div className="space-y-5">
-              {(activeTab === 'pending' ? pendingProposals : activeTab === 'approved' ? approvedProposals : rejectedProposals).map((prop) => (
-                <div
-                  key={prop.id}
-                  className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-5 hover:border-indigo-200 transition"
-                >
-                  {/* Proposal Top Row */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
-                          {prop.category}
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                          {prop.club_name || 'Robotics & AI Guild'}
-                        </span>
-                        {prop.status === 'pending_approval' && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                            Needs Approval
+          )}
+
+          {/* TAB 3: PROPOSALS (Pending, Approved, Rejected) */}
+          {activeTab !== 'audit' && activeTab !== 'compliance' && (
+            <div className="space-y-4">
+              {(activeTab === 'pending' ? pendingProposals : activeTab === 'approved' ? approvedProposals : rejectedProposals).length === 0 ? (
+                <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 text-slate-400 text-xs">
+                  No event proposals in this sanction state.
+                </div>
+              ) : (
+                (activeTab === 'pending' ? pendingProposals : activeTab === 'approved' ? approvedProposals : rejectedProposals).map((prop) => (
+                  <div
+                    key={prop.id}
+                    className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm hover:border-indigo-200 transition space-y-4"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">
+                            {prop.category}
                           </span>
+                          <span className="text-xs text-slate-400 font-medium">
+                            Proposal #{prop.id}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900">
+                          {prop.title}
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Submitted by <strong className="text-slate-700">{prop.club_name}</strong> • Coordinator: {prop.coordinator_name || 'Priya Patel'}
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-2">
+                        {prop.status === 'pending_approval' && (
+                          <>
+                            <button
+                              onClick={() => handleReject(prop.id, prop.title)}
+                              className="px-3.5 py-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition flex items-center gap-1"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>Decline</span>
+                            </button>
+                            <button
+                              onClick={() => handleApprove(prop.id, prop.title)}
+                              className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition flex items-center gap-1"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Approve & Sanction</span>
+                            </button>
+                          </>
                         )}
                         {prop.status === 'approved' && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Sanctioned & Published
+                          <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Sanctioned</span>
+                          </span>
+                        )}
+                        {prop.status === 'rejected' && (
+                          <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200 flex items-center gap-1">
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Declined</span>
                           </span>
                         )}
                       </div>
-                      <h3 className="font-bold text-xl text-slate-900">{prop.title}</h3>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs font-black text-slate-900 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
-                        Budget: ${prop.budget_requested || 1250}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Proposal Metadata Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <div>
-                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Dates</span>
-                      <span className="font-semibold text-slate-900">{prop.date_str}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Venue</span>
-                      <span className="font-semibold text-slate-900 truncate block">{prop.venue}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Capacity</span>
-                      <span className="font-semibold text-slate-900">{prop.capacity} Seats</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Impact Rating</span>
-                      <span className="font-bold text-indigo-600">{prop.impact_score || 'High Impact'}</span>
-                    </div>
-                  </div>
-
-                  {/* Safety & Compliance Notes (Screen 4) */}
-                  <div className="p-3.5 rounded-xl bg-indigo-50/50 border border-indigo-100 text-xs space-y-1">
-                    <span className="font-bold text-indigo-950 flex items-center gap-1.5">
-                      <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>Coordinator Review Checklist:</span>
-                    </span>
-                    <p className="text-slate-600 leading-relaxed">
-                      {prop.coordinator_notes || 'Facilities cleared. Security team assigned. Speaker list verified and travel funded.'}
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {prop.description}
                     </p>
-                  </div>
 
-                  {/* Action Buttons (Matching Screen 4) */}
-                  <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100">
-                    <button
-                      onClick={() => alert(`Downloading official administrative proposal PDF for ${prop.title}`)}
-                      className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download PDF Proposal</span>
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      {prop.status === 'pending_approval' && (
-                        <>
-                          <button
-                            onClick={() => handleReject(prop.id, prop.title)}
-                            className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold transition"
-                          >
-                            Reject
-                          </button>
-                          <button
-                            onClick={() => handleApprove(prop.id, prop.title)}
-                            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition active:scale-98 flex items-center gap-1.5"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Approve & Sanction Event</span>
-                          </button>
-                        </>
-                      )}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
+                      <div>
+                        <span className="text-slate-400 block">Date</span>
+                        <span className="font-bold text-slate-800">{prop.date_str}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Venue</span>
+                        <span className="font-bold text-slate-800 truncate block">{prop.venue}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Requested Cap</span>
+                        <span className="font-bold text-slate-800">{prop.capacity} Seats</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Budget Sanction</span>
+                        <span className="font-bold text-emerald-600">$450 Allocated</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           )}
         </div>
 
-        {/* Right Column: Administrative Tools (Screen 4) */}
+        {/* Right Column: Compliance Sidebars (Screen 4) */}
         <div className="space-y-6">
-          {/* Card 1: Mini Approval Queue Calendar */}
+          {/* Card 1: Academic Calendar */}
           <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">
@@ -432,20 +525,103 @@ export default function AdminGovernancePage() {
           {/* Card 3: Platform Audit Activity Summary */}
           <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm space-y-3">
             <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">
-              Administrative Compliance
+              Institutional Accreditation Status
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Dean's office compliance metrics: 98.4% of event proposals evaluated within 48 hours SLA.
+              Dean's office extracurricular audit compliance: <strong>99.1%</strong> verified student attendance records with cryptographic hashes.
             </p>
             <div className="pt-1">
-              <span className="text-xs font-bold text-indigo-600 flex items-center gap-1">
-                <span>Sanction Compliance Logged</span>
-                <span>✓</span>
-              </span>
+              <button
+                onClick={handleFetchAccreditation}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition"
+              >
+                <span>View NAAC / NIRF Metrics</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* STATUTORY NAAC / NIRF ACCREDITATION AUDIT MODAL */}
+      {showAccreditationModal && accreditationReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-8 shadow-2xl border border-slate-200 relative space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">
+                  Institution Quality Assurance Cell (IQAC)
+                </span>
+                <h2 className="text-xl font-bold text-slate-900 mt-0.5">
+                  Extracurricular Audit Report (NIRF / NAAC Criterion 5)
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowAccreditationModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-100">
+                <div className="text-2xl font-black text-indigo-700">{accreditationReport.total_approved_events}</div>
+                <div className="text-[11px] font-semibold text-slate-600 mt-1">Conducted Events</div>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-100">
+                <div className="text-2xl font-black text-emerald-700">{accreditationReport.total_registrations}</div>
+                <div className="text-[11px] font-semibold text-slate-600 mt-1">Total Registrations</div>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-purple-50 border border-purple-100">
+                <div className="text-2xl font-black text-purple-700">{accreditationReport.total_verified_attendees}</div>
+                <div className="text-[11px] font-semibold text-slate-600 mt-1">Verified Attendees</div>
+              </div>
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-100">
+                <div className="text-2xl font-black text-amber-700">{accreditationReport.total_certificates_issued}</div>
+                <div className="text-[11px] font-semibold text-slate-600 mt-1">Certificates Issued</div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                Departmental Extracurricular Participation Share
+              </h4>
+              <div className="space-y-2">
+                {accreditationReport.department_distribution.map((dept, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="font-semibold text-slate-700">{dept.department}</span>
+                    <span className="font-mono font-bold text-indigo-600">{dept.count} Students ({dept.percentage}%)</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-900 text-white text-xs flex items-center justify-between">
+              <div>
+                <div className="font-bold">Cryptographic Report Hash:</div>
+                <div className="font-mono text-indigo-300 text-[10px] break-all">{accreditationReport.integrity_hash}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => window.print()}
+                className="py-2.5 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export Official Audit PDF</span>
+              </button>
+              <button
+                onClick={() => setShowAccreditationModal(false)}
+                className="py-2.5 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

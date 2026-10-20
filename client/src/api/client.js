@@ -52,8 +52,9 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(data)
   }),
-  registerForEvent: (id) => apiRequest(`/events/${id}/register`, {
-    method: 'POST'
+  registerForEvent: (id, formData = {}) => apiRequest(`/events/${id}/register`, {
+    method: 'POST',
+    body: JSON.stringify(formData)
   }),
   cancelRegistration: (id) => apiRequest(`/events/${id}/register`, {
     method: 'DELETE'
@@ -64,6 +65,10 @@ export const api = {
     body: JSON.stringify(payload)
   }),
   getEventStats: (id) => apiRequest(`/events/${id}/stats`),
+  issueCertificates: (id) => apiRequest(`/events/${id}/issue-certificates`, {
+    method: 'POST'
+  }),
+  getCertificate: (id) => apiRequest(`/events/${id}/certificate`),
 
   // Clubs
   getClubs: (params = {}) => {
@@ -89,6 +94,12 @@ export const api = {
   rejectEvent: (id, reason) => apiRequest(`/admin/events/${id}/reject`, {
     method: 'POST',
     body: JSON.stringify({ reason })
+  }),
+  getAccreditationReport: () => apiRequest('/admin/accreditation-report'),
+  getClubsCompliance: () => apiRequest('/admin/clubs-compliance'),
+  updateClubCompliance: (id, data) => apiRequest(`/admin/clubs/${id}/compliance`, {
+    method: 'POST',
+    body: JSON.stringify(data)
   }),
   getAuditLogs: () => apiRequest('/admin/audit-logs'),
 
