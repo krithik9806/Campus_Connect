@@ -18,12 +18,20 @@ import {
   ChevronRight
 } from 'lucide-react';
 
-export default function DiscoverEventsPage({ onSelectEvent, onNavigateToClubs }) {
+export default function DiscoverEventsPage({
+  onSelectEvent,
+  onNavigateToClubs,
+  searchQuery: globalSearch,
+  setSearchQuery: setGlobalSearch
+}) {
   const { user } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All Events');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [localSearch, setLocalSearch] = useState('');
+
+  const searchQuery = globalSearch !== undefined ? globalSearch : localSearch;
+  const setSearchQuery = setGlobalSearch || setLocalSearch;
 
   const categories = [
     'All Events',

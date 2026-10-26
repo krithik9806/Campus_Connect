@@ -274,10 +274,21 @@ export async function query(text, params = []) {
       return { rows, rowCount: rows.length };
     } else {
       let targetTable = null;
+      let updateId = null;
 
       if (hasReturning) {
-        const match = cleanSql.match(/INSERT\s+INTO\s+([a-zA-Z0-9_]+)/i);
-        if (match) targetTable = match[1];
+        const insertMatch = cleanSql.match(/INSERT\s+INTO\s+([a-zA-Z0-9_]+)/i);
+        const updateMatch = cleanSql.match(/UPDATE\s+([a-zA-Z0-9_]+)/i);
+        if (insertMatch) {
+          targetTable = insertMatch[1];
+        } else if (updateMatch) {
+          targetTable = updateMatch[1];
+          const whereIdMatch = text.match(/WHERE\s+id\s*=\s*\$([0-9]+)/i);
+          if (whereIdMatch) {
+            const paramIdx = parseInt(whereIdMatch[1], 10) - 1;
+            updateId = params[paramIdx];
+          }
+        }
         cleanSql = cleanSql.replace(/RETURNING\s+[\s\S]+$/i, '');
       }
 
@@ -286,7 +297,14 @@ export async function query(text, params = []) {
 
       let rows = [];
       if (hasReturning && targetTable) {
-        const idStmt = sqlJsDb.prepare(`SELECT * FROM ${targetTable} ORDER BY id DESC LIMIT 1`);
+        let fetchSql = `SELECT * FROM ${targetTable} ORDER BY id DESC LIMIT 1`;
+        let fetchParams = [];
+        if (updateId !== null && updateId !== undefined) {
+          fetchSql = `SELECT * FROM ${targetTable} WHERE id = ?`;
+          fetchParams = [updateId];
+        }
+        const idStmt = sqlJsDb.prepare(fetchSql);
+        if (fetchParams.length > 0) idStmt.bind(fetchParams);
         if (idStmt.step()) {
           rows.push(idStmt.getAsObject());
         }

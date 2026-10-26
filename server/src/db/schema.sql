@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS clubs (
     coordinator_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     member_count INTEGER DEFAULT 0,
     points INTEGER DEFAULT 500,
+    faculty_advisor VARCHAR(200) DEFAULT 'Dr. Sundar Rao (Dept. Head)',
+    compliance_status VARCHAR(50) DEFAULT 'Good Standing',
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -69,6 +71,19 @@ CREATE TABLE IF NOT EXISTS registrations (
     ticket_code VARCHAR(100) UNIQUE NOT NULL,
     status VARCHAR(50) DEFAULT 'registered' CHECK (status IN ('registered', 'cancelled', 'attended')),
     qr_token TEXT NOT NULL,
+    academic_year VARCHAR(50) DEFAULT '3rd Year',
+    phone_number VARCHAR(50) DEFAULT '+1 (555) 234-5678',
+    emergency_contact VARCHAR(100),
+    participation_type VARCHAR(50) DEFAULT 'individual',
+    team_name VARCHAR(150),
+    team_members TEXT,
+    dietary_pref VARCHAR(50) DEFAULT 'Vegetarian',
+    tshirt_size VARCHAR(20) DEFAULT 'M',
+    portfolio_url TEXT,
+    special_accommodations TEXT,
+    code_of_conduct_agreed BOOLEAN DEFAULT TRUE,
+    certificate_issued BOOLEAN DEFAULT FALSE,
+    certificate_id VARCHAR(100),
     registered_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(event_id, user_id)
 );

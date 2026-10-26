@@ -15,12 +15,20 @@ import {
   Plus
 } from 'lucide-react';
 
-export default function ClubsDirectoryPage({ onSelectClub, onSelectEvent }) {
+export default function ClubsDirectoryPage({
+  onSelectClub,
+  onSelectEvent,
+  searchQuery: globalSearch,
+  setSearchQuery: setGlobalSearch
+}) {
   const [clubs, setClubs] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [localSearch, setLocalSearch] = useState('');
+
+  const searchQuery = globalSearch !== undefined ? globalSearch : localSearch;
+  const setSearchQuery = setGlobalSearch || setLocalSearch;
 
   const categories = [
     { label: 'All', count: '64' },

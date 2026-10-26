@@ -227,7 +227,8 @@ router.get('/clubs-compliance', async (req, res) => {
 router.post('/clubs/:id/compliance', async (req, res) => {
   try {
     const clubId = req.params.id;
-    const { status, advisor } = req.body;
+    const status = req.body.status || req.body.standing;
+    const advisor = req.body.advisor || req.body.faculty_advisor;
 
     if (status) {
       await db.query('UPDATE clubs SET compliance_status = $1 WHERE id = $2', [status, clubId]);

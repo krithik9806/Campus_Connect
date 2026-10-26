@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminGovernancePage() {
-  const { user, role } = useAuth();
+  const { user, role, switchRole } = useAuth();
   const [stats, setStats] = useState(null);
   const [proposals, setProposals] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -58,7 +58,7 @@ export default function AdminGovernancePage() {
 
   useEffect(() => {
     loadAdminData();
-  }, []);
+  }, [role]);
 
   const handleApprove = async (id, title) => {
     try {
@@ -97,7 +97,7 @@ export default function AdminGovernancePage() {
 
   const handleUpdateClubStanding = async (clubId, newStanding) => {
     try {
-      await api.updateClubCompliance(clubId, { standing: newStanding });
+      await api.updateClubCompliance(clubId, { status: newStanding, standing: newStanding });
       const compRes = await api.getClubsCompliance();
       setClubsCompliance(compRes.clubs || []);
     } catch (err) {
@@ -144,6 +144,29 @@ export default function AdminGovernancePage() {
           </button>
         </div>
       </div>
+
+      {/* Non-admin notice */}
+      {role !== 'admin' && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-amber-900">Administrator Persona Recommended</div>
+              <p className="text-xs text-amber-700">
+                You are currently previewing as a <span className="capitalize font-semibold">{role}</span>. Switch to the Administrator persona (Dr. Rajesh Menon) to sanction proposals, regulate charters, and review audit logs.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => switchRole('admin')}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shrink-0 transition shadow-sm"
+          >
+            Switch to Administrator Persona
+          </button>
+        </div>
+      )}
 
       {/* 4 Top KPI Stat Cards (Screen 4) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">

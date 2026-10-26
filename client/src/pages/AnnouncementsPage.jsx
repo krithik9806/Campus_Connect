@@ -33,7 +33,7 @@ import {
   X
 } from 'lucide-react';
 
-export default function AnnouncementsPage() {
+export default function AnnouncementsPage({ searchQuery: globalSearch, setSearchQuery: setGlobalSearch }) {
   const { user, role } = useAuth();
   const [bulletins, setBulletins] = useState([]);
   const [urgentAdvisory, setUrgentAdvisory] = useState(null);
@@ -51,7 +51,9 @@ export default function AnnouncementsPage() {
 
   // Filter & Search Controls
   const [activeFilter, setActiveFilter] = useState('all'); // all, urgent, academic, student
-  const [searchQuery, setSearchQuery] = useState('');
+  const [localSearch, setLocalSearch] = useState('');
+  const searchQuery = globalSearch !== undefined ? globalSearch : localSearch;
+  const setSearchQuery = setGlobalSearch || setLocalSearch;
   const [selectedAudience, setSelectedAudience] = useState('All Students');
   const [selectedTerm, setSelectedTerm] = useState('Fall 2025');
   const [selectedSort, setSelectedSort] = useState('recent'); // recent, reads

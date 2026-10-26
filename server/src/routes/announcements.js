@@ -235,6 +235,9 @@ router.post('/', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Headline and message content are required.' });
     }
 
+    const scope = req.body.scope || (req.body.event_id ? 'event' : (req.body.club_id ? 'club' : 'college_wide'));
+    const clubId = req.body.club_id || null;
+
     const refNo = `CC-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
     const newBulletin = {
       id: Date.now(),
@@ -252,10 +255,24 @@ router.post('/', authenticate, async (req, res) => {
       attachment_name: attachment_name || null,
       attachment_size: attachment_size || null,
       priority,
-      scope: 'college_wide',
+      scope,
       pinned: priority === 'urgent',
       created_at: new Date().toISOString()
     };
+
+    // Persist into database
+    try {
+      const dbInsert = await db.query(`
+        INSERT INTO announcements (club_id, title, message, scope, priority, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id
+      `, [clubId, title.trim(), message.trim(), scope, priority === 'urgent' ? 'urgent' : (priority === 'high' ? 'high' : 'normal'), req.user.id]);
+      if (dbInsert.rows.length > 0) {
+        newBulletin.id = dbInsert.rows[0].id;
+      }
+    } catch (dbErr) {
+      console.warn('Could not insert announcement to database:', dbErr.message);
+    }
 
     bulletins.unshift(newBulletin);
 

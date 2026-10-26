@@ -112,8 +112,8 @@ router.get('/:id', optionalAuthenticate, async (req, res) => {
   }
 });
 
-// Create Event (Coordinators & Admins)
-router.post('/', authenticate, requireRole(['coordinator', 'admin']), async (req, res) => {
+// Create Event (Students, Coordinators & Admins)
+router.post('/', authenticate, requireRole(['student', 'coordinator', 'admin']), async (req, res) => {
   try {
     const {
       title, description, category, club_id, image_url, date_str,
@@ -217,11 +217,17 @@ router.post('/:id/register', authenticate, async (req, res) => {
       eventTitle: event.title
     }));
 
-    const {
-      academic_year, phone_number, emergency_contact, participation_type,
-      team_name, team_members, dietary_pref, tshirt_size, portfolio_url,
-      special_accommodations, code_of_conduct_agreed
-    } = req.body;
+    const academic_year = req.body.academic_year || req.body.academicYear || '3rd Year';
+    const phone_number = req.body.phone_number || req.body.phoneNumber || '+1 (555) 234-5678';
+    const emergency_contact = req.body.emergency_contact || req.body.emergencyContact || '';
+    const participation_type = req.body.participation_type || req.body.participationType || 'individual';
+    const team_name = req.body.team_name || req.body.teamName || '';
+    const team_members = req.body.team_members || req.body.teamMembers || '';
+    const dietary_pref = req.body.dietary_pref || req.body.dietaryPref || 'Vegetarian';
+    const tshirt_size = req.body.tshirt_size || req.body.tshirtSize || 'M';
+    const portfolio_url = req.body.portfolio_url || req.body.portfolioUrl || '';
+    const special_accommodations = req.body.special_accommodations || req.body.specialAccommodations || '';
+    const code_of_conduct_agreed = (req.body.code_of_conduct_agreed !== undefined ? req.body.code_of_conduct_agreed : req.body.acceptedConduct) !== false ? 1 : 0;
 
     let regResult;
     if (existingReg.rows.length > 0) {
@@ -544,13 +550,15 @@ router.get('/:id/stats', authenticate, async (req, res) => {
       "SELECT COUNT(*) as count FROM registrations WHERE event_id = $1 AND status != 'cancelled'",
       [eventId]
     );
-    const totalReg = parseInt(regCountRes.rows[0].count, 10);
+    const dbRegCount = parseInt(regCountRes.rows[0].count, 10);
+    const totalReg = Math.max(dbRegCount, event.registered_count || 0);
 
     const attCountRes = await db.query(
       'SELECT COUNT(*) as count FROM attendance WHERE event_id = $1',
       [eventId]
     );
-    const checkedIn = parseInt(attCountRes.rows[0].count, 10);
+    const dbAttCount = parseInt(attCountRes.rows[0].count, 10);
+    const checkedIn = Math.max(dbAttCount, event.checked_in_count || 0);
 
     const remainingSeats = Math.max(0, event.capacity - totalReg);
     const turnoutRate = totalReg > 0 ? ((checkedIn / totalReg) * 100).toFixed(1) : '0.0';

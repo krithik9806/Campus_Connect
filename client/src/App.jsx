@@ -47,6 +47,8 @@ function AppContent() {
                 <DiscoverEventsPage
                   onSelectEvent={(ev) => setSelectedEvent(ev)}
                   onNavigateToClubs={() => navigate('/clubs')}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
                 />
               }
             />
@@ -56,6 +58,8 @@ function AppContent() {
                 <ClubsDirectoryPage
                   onSelectClub={(c) => setSelectedClub(c)}
                   onSelectEvent={(ev) => setSelectedEvent(ev)}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
                 />
               }
             />
@@ -77,7 +81,7 @@ function AppContent() {
             />
             <Route
               path="/announcements"
-              element={<AnnouncementsPage />}
+              element={<AnnouncementsPage searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}
             />
           </Routes>
         </main>

@@ -81,7 +81,21 @@ export default function EventDetailModal({ event, onClose, onRegisteredChange })
     setLoading(true);
     setError('');
     try {
-      const res = await api.registerForEvent(event.id, formData);
+      const payload = {
+        ...formData,
+        academic_year: formData.academicYear,
+        phone_number: formData.phoneNumber,
+        emergency_contact: formData.emergencyContact,
+        participation_type: formData.participationType,
+        team_name: formData.teamName,
+        team_members: formData.teamMembers,
+        dietary_pref: formData.dietaryPref,
+        tshirt_size: formData.tshirtSize,
+        portfolio_url: formData.portfolioUrl,
+        special_accommodations: formData.specialAccommodations,
+        code_of_conduct_agreed: formData.acceptedConduct
+      };
+      const res = await api.registerForEvent(event.id, payload);
       setRegistered(true);
       setTicketCode(res.ticketCode);
       setQrToken(res.registration.qr_token);

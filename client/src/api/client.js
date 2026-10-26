@@ -69,6 +69,7 @@ export const api = {
     method: 'POST'
   }),
   getCertificate: (id) => apiRequest(`/events/${id}/certificate`),
+  getEventCertificate: (id) => apiRequest(`/events/${id}/certificate`),
 
   // Clubs
   getClubs: (params = {}) => {

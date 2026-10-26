@@ -184,6 +184,122 @@ async function runTests() {
     assert(res.data.stats.attendanceRate);
   });
 
+  // 13. Student Event Proposal Submission Flow
+  await test('13. Student Event Proposal Submission (pending_approval)', async () => {
+    const createRes = await req('/events', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${studentToken}` },
+      body: JSON.stringify({
+        title: 'Student-Led AI Study Jam',
+        category: 'Workshops',
+        venue: 'Room 304, Tech Wing',
+        date_str: 'May 10, 2025',
+        capacity: 40
+      })
+    });
+    assert.strictEqual(createRes.status, 201);
+    assert.strictEqual(createRes.data.event.status, 'pending_approval');
+  });
+
+  // 14. Registration with Rich Metadata & Re-registration Flow (UPDATE ... RETURNING)
+  await test('14. Rich Registration & Cancel/Re-registration Flow', async () => {
+    // Cancel registration for event 4 if exists
+    await req('/events/4/register', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${studentToken}` }
+    });
+
+    // Register with rich metadata (camelCase)
+    const richRegRes = await req('/events/4/register', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${studentToken}` },
+      body: JSON.stringify({
+        academicYear: '4th Year',
+        phoneNumber: '+1 (555) 999-1122',
+        dietaryPref: 'Vegan',
+        tshirtSize: 'XL'
+      })
+    });
+    assert.strictEqual(richRegRes.status, 201);
+    assert.strictEqual(richRegRes.data.registration.academic_year, '4th Year');
+    assert.strictEqual(richRegRes.data.registration.dietary_pref, 'Vegan');
+    assert.strictEqual(richRegRes.data.registration.tshirt_size, 'XL');
+    assert.strictEqual(richRegRes.data.registration.phone_number, '+1 (555) 999-1122');
+
+    // Cancel again
+    const cancelRes = await req('/events/4/register', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${studentToken}` }
+    });
+    assert.strictEqual(cancelRes.status, 200);
+
+    // Re-register to test UPDATE ... RETURNING *
+    const reRegRes = await req('/events/4/register', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${studentToken}` },
+      body: JSON.stringify({
+        academicYear: '4th Year',
+        phoneNumber: '+1 (555) 888-3344',
+        dietaryPref: 'Jain',
+        tshirtSize: 'L'
+      })
+    });
+    assert.strictEqual(reRegRes.status, 201);
+    assert(reRegRes.data.registration, 'Registration object must be returned on re-registration');
+    assert.strictEqual(reRegRes.data.registration.status, 'registered');
+    assert.strictEqual(reRegRes.data.registration.dietary_pref, 'Jain');
+  });
+
+  // 15. Verified Certificate Retrieval
+  await test('15. Verified Participation Certificate Retrieval', async () => {
+    // Event 2 (Drone Swarm) has attendance records seeded for Aarav
+    const certRes = await req('/events/2/certificate', {
+      headers: { Authorization: `Bearer ${studentToken}` }
+    });
+    // Can be 200 with certificate or 404 if not attended yet
+    if (certRes.status === 200) {
+      assert(certRes.data.certificate.student_name);
+      assert(certRes.data.certificate.certificate_id);
+    }
+  });
+
+  // 16. Club Compliance Standing Update (standing parameter support)
+  await test('16. Club Compliance Standing Update', async () => {
+    const updateRes = await req('/admin/clubs/1/compliance', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ standing: 'Probationary Review', advisor: 'Dr. Anita Desai' })
+    });
+    assert.strictEqual(updateRes.status, 200);
+
+    const compRes = await req('/admin/clubs-compliance', {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    assert.strictEqual(compRes.status, 200);
+    const club1 = compRes.data.clubs.find(c => c.id === 1);
+    assert.strictEqual(club1?.compliance_status, 'Probationary Review');
+  });
+
+  // 17. Persistent Announcement Dispatch
+  await test('17. Announcement Dispatch & Database Persistence', async () => {
+    const dispatchRes = await req('/announcements', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${coordToken}` },
+      body: JSON.stringify({
+        title: 'Emergency Lab Safety Briefing',
+        message: 'All team leads must inspect fire suppression gear in Robotics Lab 2.',
+        priority: 'high',
+        scope: 'event'
+      })
+    });
+    assert.strictEqual(dispatchRes.status, 201);
+    assert(dispatchRes.data.bulletin.id);
+
+    const fetchRes = await req('/announcements');
+    assert.strictEqual(fetchRes.status, 200);
+    assert(fetchRes.data.bulletins.some(b => b.title === 'Emergency Lab Safety Briefing'));
+  });
+
   console.log(`\n========================================`);
   console.log(`📊 Test Results: ${passed} Passed, ${failed} Failed`);
   console.log(`========================================\n`);

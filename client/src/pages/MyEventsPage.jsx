@@ -59,7 +59,7 @@ export default function MyEventsPage({ onSelectEvent }) {
   const handleDownloadCertificate = async (ev, e) => {
     e.stopPropagation();
     try {
-      const res = await api.getEventCertificate(ev.id);
+      const res = await api.getCertificate(ev.id);
       setActiveCert(res.certificate);
     } catch (err) {
       alert(err.message || 'Certificate not yet issued for this event.');
